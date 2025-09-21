@@ -121,9 +121,7 @@ pip install -r requirements.txt
 # 5. Run the main file
 python capture_predict.py
 
-## **Live MQTT Packet Prediction**
-
-
+## Live MQTT Packet Prediction
 https://github.com/user-attachments/assets/ace9a6f8-acb2-4049-b7f2-bd8efcc37cf3
 
 
