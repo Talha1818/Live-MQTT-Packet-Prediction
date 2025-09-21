@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Mac/Linux system files
+.DS_Store
+*.swp
+*.swo
+
+# Windows system files
+Thumbs.db
+desktop.ini
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# Data files
+# mqtt_capture.csv
+# mqtt_capture_with_predictions.csv
+
+# Model files (optional if too large, keep only in releases)
+# Model_Files/*.pkl
+# Model_Files/*.joblib
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
