@@ -10,9 +10,14 @@ This repository demonstrates how to **capture live MQTT network traffic** from a
    Install Mosquitto to run a local MQTT broker:  
    [https://mosquitto.org/download/](https://mosquitto.org/download/)
 
+2.1 **Downloading and Installing Npcap (Packet capture library for Windows)**  
+    Install Npcap for Packet capture library for Windows:  
+    [https://npcap.com/#download/](https://npcap.com/#download)
+
 2. **MQTT Explorer** (optional, for monitoring)  
    A GUI tool to inspect MQTT messages:  
    [https://mqtt-explorer.com/](https://mqtt-explorer.com/)
+
 
 3. **⚡ Setup & Run**  
     1. Start Local MQTT Broker  
