@@ -53,22 +53,51 @@ def load_pickle_files(PATH: str):
     return model, scaler
 
 
+# def get_predictions(df_scaled: pd.DataFrame, model, scaler):
+#     """Predict labels and full probability distributions for each row."""
+#     input_scaled = scaler.transform(df_scaled)
+#     df_scl = pd.DataFrame(input_scaled, columns=scl_cols)[training_features]
+
+#     # Predict probabilities for all rows
+#     y_proba = model.predict_proba(df_scl)
+
+#     # Get predicted indices
+#     y_pred_idx = y_proba.argmax(axis=1)
+
+#     # Map to labels
+#     predicted_labels = [CLASSES[i] for i in y_pred_idx]
+
+#     # Put all probabilities into a DataFrame
+#     proba_df = pd.DataFrame(y_proba, columns=[f"prob_{cls}" for cls in CLASSES])
+
+#     return predicted_labels, proba_df
+
 def get_predictions(df_scaled: pd.DataFrame, model, scaler):
     """Predict labels and full probability distributions for each row."""
+    
     input_scaled = scaler.transform(df_scaled)
     df_scl = pd.DataFrame(input_scaled, columns=scl_cols)[training_features]
 
-    # Predict probabilities for all rows
+    # Predict probabilities
     y_proba = model.predict_proba(df_scl)
 
-    # Get predicted indices
+    # Predicted class indices
     y_pred_idx = y_proba.argmax(axis=1)
 
-    # Map to labels
+    # Map indices to labels
     predicted_labels = [CLASSES[i] for i in y_pred_idx]
 
-    # Put all probabilities into a DataFrame
+
+    # Probability dataframe
     proba_df = pd.DataFrame(y_proba, columns=[f"prob_{cls}" for cls in CLASSES])
+
+    # Print alert for each row
+    for i, label in enumerate(predicted_labels):
+        if label != "normal":
+            # print(f"\033[91m⚠️  Attack detected in packet {i+1}: {label}\033[0m")
+            confidence = y_proba[i].max()
+            print(f"\033[91m🚨 Packet {i+1} | Attack: {label} | Confidence: {confidence:.2f}\033[0m")
+
 
     return predicted_labels, proba_df
 
