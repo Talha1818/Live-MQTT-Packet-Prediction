@@ -10,9 +10,9 @@ This repository demonstrates how to **capture live MQTT network traffic** from a
    Install Mosquitto to run a local MQTT broker:  
    [https://mosquitto.org/download/](https://mosquitto.org/download/)
 
-2.1 **Downloading and Installing Npcap (Packet capture library for Windows)**  
-    Install Npcap for Packet capture library for Windows:  
-    [https://npcap.com/#download/](https://npcap.com/#download)
+    2.1 **Downloading and Installing Npcap (Packet capture library for Windows)**  
+        Install Npcap for Packet capture library for Windows:  
+        [https://npcap.com/#download/](https://npcap.com/#download)
 
 2. **MQTT Explorer** (optional, for monitoring)  
    A GUI tool to inspect MQTT messages:  
@@ -109,7 +109,7 @@ This repository demonstrates how to **capture live MQTT network traffic** from a
 ## Setup & Run
 ```bash
 # 1. Clone the repository
-Firstly, clone the repository using `git clone https://github.com/Talha1818/llm-self-pr-eval-swebench-inspect-ai.git`
+Firstly, clone the repository using `git clone https://github.com/Talha1818/Live-MQTT-Packet-Prediction.git`
 
 # 2. Create a virtual environment
 python -m venv env
