@@ -4,3 +4,8 @@ scikit-learn==1.6.1
 scapy
 tqdm
 openpyxl
+
+
+# for DNP3
+dnp3protocol
+keyboard
