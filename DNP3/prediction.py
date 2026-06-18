@@ -6,11 +6,6 @@ import pickle
 PATH = "../DNP3/Model_Files"
 
 
-scl_cols = ['frame.time_relative', 'tcp.time_delta', 'tcp.dstport', 'tcp.srcport',
-       'dnp3.src_addr', 'dnp3.dst_addr', 'dnp3.func_code', 'tcp.len',
-       'frame.len', 'tcp.window_size_value']
-
-training_features = scl_cols  # update this if your KMeans was trained on a subset
 
 # Map cluster index -> attack label (build this from training via
 # pd.crosstab(clusters, df["label"]).idxmax() and fill in below)
@@ -34,9 +29,27 @@ DNP3_FUNC_NAMES = {
     129: "RESPONSE", 130: "UNSOLICITED_RESPONSE",
 }
 
+global training_features
 
 # ==== Helpers ====
-def preprocessed_data(df: pd.DataFrame):
+def preprocessed_data(df: pd.DataFrame, ALL_FEATURES=False):
+
+    ##################################### ALL FEATURES (no selection) #####################################
+
+    if ALL_FEATURES:
+        scl_cols = ['frame.time_relative', 'frame.len', 'frame.cap_len', 'tcp.srcport',
+        'tcp.dstport', 'tcp.len', 'tcp.window_size_value', 'tcp.time_delta',
+        'dnp3.len', 'dnp3.ctrl', 'dnp3.dst_addr', 'dnp3.src_addr', 'dnp3.dir',
+        'dnp3.func_code_link', 'dnp3.func_code', 'dnp3.payload_len']
+    else:
+
+        scl_cols = ['frame.time_relative', 'tcp.time_delta', 'tcp.dstport', 'tcp.srcport',
+            'dnp3.src_addr', 'dnp3.dst_addr', 'dnp3.func_code', 'tcp.len',
+            'frame.len', 'tcp.window_size_value']
+
+    training_features = scl_cols  # update this if your KMeans was trained on a subset
+
+
     """Filter + clean dataframe, add encoded DNP3 labels."""
     df = df[df["dnp3.func_code"].notna()].copy()
     print(f"✅ Filtered to {len(df)} packets with valid DNP3 function codes")
@@ -50,19 +63,28 @@ def preprocessed_data(df: pd.DataFrame):
     mapping_dnp3 = {v: k for k, v in DNP3_FUNC_NAMES.items()}
     df["dnp3_func_name_label"] = df["dnp3.func_name"].map(mapping_dnp3)
 
-    return df, df[scl_cols]
+    return df, df[scl_cols], training_features, scl_cols
 
 
-def load_pickle_files(PATH: str):
-    """Load pre-trained KMeans model and scaler."""
-    with open(f"{PATH}/kmeans_model_dnp3.pkl", "rb") as f:
+def load_pickle_files(PATH: str, all_features: bool = False):
+    """Load pre-trained model and scaler based on feature set."""
+    
+    if all_features:
+        model_file  = "kmeans_model_dnp3_all_features.pkl"
+        scaler_file = "dnp3_scaler_final_all_features.pkl"
+    else:
+        model_file  = "kmeans_model_dnp3.pkl"
+        scaler_file = "dnp3_scaler_final.pkl"
+    
+    with open(f"{PATH}/{model_file}", "rb") as f:
         model = pickle.load(f)
-    with open(f"{PATH}/dnp3_scaler_final.pkl", "rb") as f:
+    with open(f"{PATH}/{scaler_file}", "rb") as f:
         scaler = pickle.load(f)
+        
     return model, scaler
 
 
-def get_predictions(df_scaled: pd.DataFrame, model, scaler):
+def get_predictions(df_scaled: pd.DataFrame, model, scaler, training_features, scl_cols):
     """Predict cluster labels and distance-based confidence scores for each row."""
 
     input_scaled = scaler.transform(df_scaled)
@@ -100,10 +122,11 @@ def get_predictions(df_scaled: pd.DataFrame, model, scaler):
 if __name__ == '__main__':
     df = pd.read_csv("dnp3_capture.csv")
 
-    df_original, df_proc = preprocessed_data(df)
+    all_features = True
+    df_original, df_proc, training_features, scl_cols = preprocessed_data(df, ALL_FEATURES=all_features)
 
-    model, scaler = load_pickle_files(PATH)
-    labels, proba_df = get_predictions(df_proc, model, scaler)
+    model, scaler = load_pickle_files(PATH, all_features=all_features)
+    labels, proba_df = get_predictions(df_proc, model, scaler, training_features, scl_cols)
 
     # Add results to original DataFrame
     df_original["predicted_label"] = labels

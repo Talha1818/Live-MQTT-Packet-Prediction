@@ -147,9 +147,11 @@ if __name__ == "__main__":
     print("📂 Saved to dnp3_capture.csv")
 
     # ── Step 3: Preprocess + Predict ──
-    df_original, df_proc = preprocessed_data(df)
-    model, scaler        = load_pickle_files(PATH)
-    labels, proba_df      = get_predictions(df_proc, model, scaler)
+    all_features = True
+    df_original, df_proc, training_features, scl_cols = preprocessed_data(df, ALL_FEATURES=all_features)
+    print(f"✅ Preprocessed data with {len(df_proc)} rows and {len(df_proc.columns)} features")
+    model, scaler        = load_pickle_files(PATH, all_features=all_features)
+    labels, proba_df      = get_predictions(df_proc, model, scaler, training_features, scl_cols)
 
     df_original["predicted_label"] = labels
     df_original = df_original.reset_index(drop=True)
@@ -157,7 +159,10 @@ if __name__ == "__main__":
     df_original = pd.concat([df_original, proba_df], axis=1)
 
     # ── Step 4: Save Excel with attack highlighting ──
-    file_name = "dnp3_capture_with_predictions.xlsx"
+    if all_features:
+        file_name = f"dnp3_capture_with_predictions_all_features.xlsx"
+    else:
+        file_name = f"dnp3_capture_with_predictions.xlsx"
     df_original.to_excel(file_name, index=False)
 
     wb = load_workbook(file_name)
