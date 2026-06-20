@@ -43,9 +43,9 @@ def preprocessed_data(df: pd.DataFrame, ALL_FEATURES=False):
         'dnp3.func_code_link', 'dnp3.func_code', 'dnp3.payload_len']
     else:
 
-        scl_cols = ['frame.time_relative', 'tcp.time_delta', 'tcp.dstport', 'tcp.srcport',
-            'dnp3.src_addr', 'dnp3.dst_addr', 'dnp3.func_code', 'tcp.len',
-            'frame.len', 'tcp.window_size_value']
+        scl_cols = ['tcp.time_delta', 'frame.time_relative', 'tcp.window_size_value',
+       'dnp3.dst_addr', 'dnp3.src_addr', 'dnp3.len', 'frame.len',
+       'dnp3.func_code', 'dnp3.ctrl', 'tcp.len']
 
     training_features = scl_cols  # update this if your KMeans was trained on a subset
 

@@ -19,14 +19,15 @@ DNP3_FUNC_NAMES = {
 }
 
 # === Storage ===
-dnp3_rows  = []
+dnp3_rows   = []
 pkt_counter = 0
 first_time, last_time = None, None
 
-# ── Packet Callback (same logic as parse_pcap_files) ──────────────────────────
+# ── Packet Callback ────────────────────────────────────────────────────────────
 def packet_callback(pkt):
     global pkt_counter, first_time, last_time, dnp3_rows
 
+    # ── loopback pe IP layer direct hoti hai, Ether nahi ──
     if not pkt.haslayer(TCP) or not pkt.haslayer(IP):
         return
 
@@ -34,7 +35,7 @@ def packet_callback(pkt):
     ip_layer  = pkt[IP]
     eth_layer = pkt[Ether] if pkt.haslayer(Ether) else None
 
-    # ── Only DNP3 traffic (port 20003) ──
+    # ── Only port 20003 ──
     if tcp_layer.sport != 20003 and tcp_layer.dport != 20003:
         return
 
@@ -73,7 +74,6 @@ def packet_callback(pkt):
     dnp3_func_code = dnp3_ctrl & 0x0F
 
     row = {
-        # === Frame ===
         "source_file"           : "live_capture",
         "frame.number"          : pkt_counter,
         "frame.time_epoch"      : frame_time,
@@ -81,18 +81,12 @@ def packet_callback(pkt):
         "frame.time_delta"      : frame_time_delta,
         "frame.len"             : len(pkt),
         "frame.cap_len"         : len(bytes(pkt)),
-
-        # === Ethernet ===
         "eth.src"               : eth_layer.src if eth_layer else None,
         "eth.dst"               : eth_layer.dst if eth_layer else None,
-
-        # === IP ===
         "ip.src"                : ip_layer.src,
         "ip.dst"                : ip_layer.dst,
         "ip.proto"              : ip_layer.proto,
         "ip.ttl"                : ip_layer.ttl,
-
-        # === TCP ===
         "tcp.srcport"           : tcp_layer.sport,
         "tcp.dstport"           : tcp_layer.dport,
         "tcp.flags"             : tcp_layer.flags.value,
@@ -100,8 +94,6 @@ def packet_callback(pkt):
         "tcp.window_size_value" : tcp_layer.window,
         "tcp.checksum"          : tcp_layer.chksum,
         "tcp.time_delta"        : frame_time_delta,
-
-        # === DNP3 Data Link Layer ===
         "dnp3_present"          : True,
         "dnp3.start"            : f"0x{raw[0]:02X}{raw[1]:02X}",
         "dnp3.len"              : dnp3_len,
@@ -113,8 +105,6 @@ def packet_callback(pkt):
         "dnp3.fcb"              : dnp3_fcb,
         "dnp3.fcv"              : dnp3_fcv,
         "dnp3.func_code_link"   : dnp3_func_code,
-
-        # === DNP3 Application Layer ===
         "dnp3.func_code"        : dnp3_func,
         "dnp3.func_name"        : dnp3_func_name,
         "dnp3.payload_len"      : len(raw),
@@ -122,58 +112,99 @@ def packet_callback(pkt):
     }
 
     dnp3_rows.append(row)
-    print(f"[{pkt_counter}] {ip_layer.src} → {ip_layer.dst} | {dnp3_func_name}")
+    print(f"  [{pkt_counter:03d}] {ip_layer.src} → {ip_layer.dst} "
+          f"| func={dnp3_func} ({dnp3_func_name}) "
+          f"| {len(raw)}B")
 
 
 if __name__ == "__main__":
 
+    # ── FIX 1: loopback interface confirmed working ──
     iface = r"\Device\NPF_Loopback"
+
+    # ── FIX 2: PATH — change if Model_Files is elsewhere ──
     PATH  = "../DNP3/Model_Files"
 
-    # ── Step 1: Live Capture ──
-    print("🚦 Capturing live DNP3 packets on ports 20000-20003...")
-    sniff(prn=packet_callback, filter="tcp portrange 20000-20003",
-          iface=iface, store=False, timeout=30)
+    # ── FIX 3: all_features flag ──
+    ALL_FEATURES = False
+
+    # ── Step 1: Live Capture ──────────────────────────────────────────────
+    print("=" * 60)
+    print("  DNP3 Live Capture + Prediction")
+    print(f"  Interface : {iface}")
+    print(f"  Filter    : tcp port 20003")
+    print(f"  Timeout   : 30 seconds")
+    print(f"  Features  : {'ALL (16)' if ALL_FEATURES else 'SUBSET (10)'}")
+    print("=" * 60)
+    print("  Waiting for packets... (run dnp3_attack_generator.py now)")
+    print()
+
+    # ── FIX 4: 'portrange' filter broken on loopback → use 'port 20003' ──
+    sniff(
+        prn=packet_callback,
+        filter="tcp port 20003",        # <-- FIXED (was: portrange 20000-20003)
+        iface=iface,
+        store=False,
+        timeout=30
+    )
+
     print(f"\n✅ Captured {len(dnp3_rows)} DNP3 packets")
 
     if len(dnp3_rows) == 0:
-        print("⚠️ No DNP3 packets captured. Check interface or simulator.")
+        print("⚠️  No DNP3 packets captured.")
+        print("    Check: outstation running? attack generator running?")
         exit()
 
-    # ── Step 2: Save raw capture ──
+    # ── Step 2: Save raw capture ──────────────────────────────────────────
     df = pd.DataFrame(dnp3_rows)
     df = df[df["dnp3.func_code"].notna()].copy()
     df.to_csv("dnp3_capture.csv", index=False)
-    print("📂 Saved to dnp3_capture.csv")
+    print(f"📂 Raw capture saved → dnp3_capture.csv  ({len(df)} rows)")
 
-    # ── Step 3: Preprocess + Predict ──
-    all_features = True
-    df_original, df_proc, training_features, scl_cols = preprocessed_data(df, ALL_FEATURES=all_features)
-    print(f"✅ Preprocessed data with {len(df_proc)} rows and {len(df_proc.columns)} features")
-    model, scaler        = load_pickle_files(PATH, all_features=all_features)
-    labels, proba_df      = get_predictions(df_proc, model, scaler, training_features, scl_cols)
+    # ── Step 3: Preprocess ────────────────────────────────────────────────
+    df_original, df_proc, training_features, scl_cols = preprocessed_data(
+        df, ALL_FEATURES=ALL_FEATURES
+    )
+    print(f"✅ Preprocessed: {len(df_proc)} rows × {len(df_proc.columns)} features")
 
+    # ── Step 4: Load model + predict ─────────────────────────────────────
+    model, scaler    = load_pickle_files(PATH, all_features=ALL_FEATURES)
+    labels, proba_df = get_predictions(df_proc, model, scaler,
+                                       training_features, scl_cols)
+
+    # ── Step 5: Print real-time summary ──────────────────────────────────
+    print("\n📊 Prediction Summary:")
+    print("-" * 40)
+    from collections import Counter
+    for label, cnt in Counter(labels).items():
+        bar = "█" * cnt
+        print(f"  {label:20s} : {cnt:3d}  {bar}")
+    print("-" * 40)
+
+    # ── Step 6: Merge + save Excel ────────────────────────────────────────
     df_original["predicted_label"] = labels
     df_original = df_original.reset_index(drop=True)
     proba_df    = proba_df.reset_index(drop=True)
-    df_original = pd.concat([df_original, proba_df], axis=1)
+    df_out      = pd.concat([df_original, proba_df], axis=1)
 
-    # ── Step 4: Save Excel with attack highlighting ──
-    if all_features:
-        file_name = f"dnp3_capture_with_predictions_all_features.xlsx"
-    else:
-        file_name = f"dnp3_capture_with_predictions.xlsx"
-    df_original.to_excel(file_name, index=False)
+    file_name = ("dnp3_capture_with_predictions_all_features.xlsx"
+                 if ALL_FEATURES else
+                 "dnp3_capture_with_predictions.xlsx")
 
-    wb = load_workbook(file_name)
-    ws = wb.active
-    red_fill  = PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid")
-    col_index = list(df_original.columns).index("predicted_label") + 1
+    df_out.to_excel(file_name, index=False)
+
+    # ── Step 7: Highlight attack rows red ────────────────────────────────
+    wb       = load_workbook(file_name)
+    ws       = wb.active
+    red_fill = PatternFill(start_color="FF9999", end_color="FF9999",
+                           fill_type="solid")
+    col_idx  = list(df_out.columns).index("predicted_label") + 1
 
     for row in range(2, ws.max_row + 1):
-        if ws.cell(row=row, column=col_index).value != "NORMAL":
+        if ws.cell(row=row, column=col_idx).value != "NORMAL":
             for col in range(1, ws.max_column + 1):
                 ws.cell(row=row, column=col).fill = red_fill
 
     wb.save(file_name)
-    print("✅ Predictions with highlighted attacks saved to Excel")
+    print(f"\n✅ Excel saved → {file_name}")
+    print("   Attack rows highlighted in red.")

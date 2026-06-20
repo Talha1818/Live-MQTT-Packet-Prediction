@@ -5,24 +5,35 @@ import pickle
 # ==== Config ====
 PATH = "../DNP3/Model_Files"
 
-scl_cols = ['frame.time_relative', 'frame.len', 'frame.cap_len', 'tcp.srcport',
-       'tcp.dstport', 'tcp.len', 'tcp.window_size_value', 'tcp.time_delta',
-       'dnp3.len', 'dnp3.ctrl', 'dnp3.dst_addr', 'dnp3.src_addr', 'dnp3.dir',
-       'dnp3.func_code_link', 'dnp3.func_code', 'dnp3.payload_len']
-
-training_features = ['frame.time_relative',
- 'tcp.time_delta',
- 'tcp.dstport',
- 'tcp.srcport',
- 'dnp3.src_addr',
- 'dnp3.dst_addr',
- 'dnp3.func_code',
+scl_cols = ['frame.time_relative',
  'frame.len',
+ 'frame.cap_len',
+ 'tcp.srcport',
+ 'tcp.dstport',
+ 'tcp.len',
  'tcp.window_size_value',
- 'frame.cap_len'] 
+ 'tcp.time_delta',
+ 'dnp3.len',
+ 'dnp3.ctrl',
+ 'dnp3.dst_addr',
+ 'dnp3.src_addr',
+ 'dnp3.dir',
+ 'dnp3.prm',
+ 'dnp3.func_code_link',
+ 'dnp3.func_code',
+ 'dnp3.payload_len']
 
-# Map cluster index -> attack label (build this from training via
-# pd.crosstab(clusters, df["label"]).idxmax() and fill in below)
+training_features = ['tcp.time_delta',
+ 'frame.time_relative',
+ 'tcp.window_size_value',
+ 'dnp3.dst_addr',
+ 'dnp3.src_addr',
+ 'dnp3.len',
+ 'frame.len',
+ 'dnp3.func_code',
+ 'dnp3.ctrl',
+ 'tcp.len']
+
 CLUSTER_LABEL_MAP = {
     0: "RESTART_ATTACK",
     1: "CONTROL_ATTACK",

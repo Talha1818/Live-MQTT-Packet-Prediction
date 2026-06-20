@@ -22,6 +22,7 @@ DNP3_FUNC_NAMES = {
 dnp3_rows  = []
 pkt_counter = 0
 first_time, last_time = None, None
+DNP3_PORT = 20003  # ← change this one place only
 
 # ── Packet Callback (same logic as parse_pcap_files) ──────────────────────────
 def packet_callback(pkt):
@@ -35,7 +36,7 @@ def packet_callback(pkt):
     eth_layer = pkt[Ether] if pkt.haslayer(Ether) else None
 
     # ── Only DNP3 traffic (port 20003) ──
-    if tcp_layer.sport != 20003 and tcp_layer.dport != 20003:
+    if tcp_layer.sport != DNP3_PORT and tcp_layer.dport != DNP3_PORT:
         return
 
     # ── Must have raw payload ──
@@ -127,29 +128,81 @@ def packet_callback(pkt):
 
 if __name__ == "__main__":
 
+    # iface = r"\Device\NPF_Loopback"
+    # PATH  = "../DNP3/Model_Files"
+
+    # # ── Step 1: Live Capture ──
+    # print("🚦 Capturing live DNP3 packets on ports 20000-20003...")
+    # sniff(prn=packet_callback, filter="tcp portrange 20000-20003",
+    #       iface=iface, store=False, timeout=30)
+    # print(f"\n✅ Captured {len(dnp3_rows)} DNP3 packets")
+
+    # if len(dnp3_rows) == 0:
+    #     print("⚠️ No DNP3 packets captured. Check interface or simulator.")
+    #     exit()
+
+    # # ── Step 2: Save raw capture ──
+    # df = pd.DataFrame(dnp3_rows)
+    # df = df[df["dnp3.func_code"].notna()].copy()
+    # df.to_csv("dnp3_capture.csv", index=False)
+    # print("📂 Saved to dnp3_capture.csv")
+
+
+        # ── FIX 1: loopback interface confirmed working ──
     iface = r"\Device\NPF_Loopback"
+
+    # ── FIX 2: PATH — change if Model_Files is elsewhere ──
     PATH  = "../DNP3/Model_Files"
 
-    # ── Step 1: Live Capture ──
-    print("🚦 Capturing live DNP3 packets on ports 20000-20003...")
-    sniff(prn=packet_callback, filter="tcp portrange 20000-20003",
-          iface=iface, store=False, timeout=30)
+    # ── FIX 3: all_features flag ──
+    ALL_FEATURES = False
+
+    # ── Step 1: Live Capture ──────────────────────────────────────────────
+    print("=" * 60)
+    print("  DNP3 Live Capture + Prediction")
+    print(f"  Interface : {iface}")
+    print(f"  Filter    : tcp port {DNP3_PORT}")
+    print(f"  Timeout   : 30 seconds")
+    print(f"  Features  : {'ALL (16)' if ALL_FEATURES else 'SUBSET (10)'}")
+    print("=" * 60)
+    print("  Waiting for packets... (run dnp3_attack_generator.py now)")
+    print()
+
+    # ── FIX 4: 'portrange' filter broken on loopback → use 'port 20003' ──
+    sniff(
+        prn=packet_callback,
+        filter=f"tcp port {DNP3_PORT}",        # <-- FIXED (was: portrange 20000-20003)
+        iface=iface,
+        store=False,
+        timeout=30
+    )
+    # sniff(iface=r"\Device\NPF_Loopback", filter="tcp port 20001", count=5, prn=lambda p: print(p.summary()))
+
     print(f"\n✅ Captured {len(dnp3_rows)} DNP3 packets")
 
     if len(dnp3_rows) == 0:
-        print("⚠️ No DNP3 packets captured. Check interface or simulator.")
+        print("⚠️  No DNP3 packets captured.")
+        print("    Check: outstation running? attack generator running?")
         exit()
 
-    # ── Step 2: Save raw capture ──
+    # ── Step 2: Save raw capture ──────────────────────────────────────────
     df = pd.DataFrame(dnp3_rows)
     df = df[df["dnp3.func_code"].notna()].copy()
     df.to_csv("dnp3_capture.csv", index=False)
-    print("📂 Saved to dnp3_capture.csv")
+    print(f"📂 Raw capture saved → dnp3_capture.csv  ({len(df)} rows)")
 
     # ── Step 3: Preprocess + Predict ──
     df_original, df_proc = preprocessed_data(df)
     model, scaler        = load_pickle_files(PATH)
     labels, proba_df      = get_predictions(df_proc, model, scaler)
+
+    print("\n📊 Prediction Summary:")
+    print("-" * 40)
+    from collections import Counter
+    for label, cnt in Counter(labels).items():
+        bar = "█" * cnt
+        print(f"  {label:20s} : {cnt:3d}  {bar}")
+    print("-" * 40)
 
     df_original["predicted_label"] = labels
     df_original = df_original.reset_index(drop=True)
@@ -171,4 +224,4 @@ if __name__ == "__main__":
                 ws.cell(row=row, column=col).fill = red_fill
 
     wb.save(file_name)
-    print("✅ Predictions with highlighted attacks saved to Excel")
+    print(f"✅ Predictions with highlighted attacks saved to Excel. ({file_name})")
